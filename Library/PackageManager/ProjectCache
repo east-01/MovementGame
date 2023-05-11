@@ -5,16 +5,16 @@ m_ProjectFiles:
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 638183290761222937
-    m_Hash: 3002546874
+      ticks: 638194264840199069
+    m_Hash: 29722345
   m_LockFileStatus:
     m_FilePath: C:/Users/mulle/MovementGame/Packages/packages-lock.json
     m_PathExists: 1
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 638183290761262949
-    m_Hash: 2611638418
+      ticks: 638194264840209029
+    m_Hash: 2688891665
 m_EmbeddedPackageManifests:
   m_ManifestsStatus: {}
 m_PackageAssets:

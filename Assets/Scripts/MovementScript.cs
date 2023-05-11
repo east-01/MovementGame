@@ -7,11 +7,17 @@ public class MovementScript : MonoBehaviour {
 
 	static readonly float P_H_ACC = 45;
 	static readonly float P_MAX_SPEED = 15;
+	
 	static readonly float P_JUMP_V_SPEED = 30f;
 	static readonly float P_JUMP_POWER = 20; // The amount the player can hold the jump button until the jump stops ascending
+	
 	static readonly float P_KICK_V_SPEED = 15;
+	
 	static readonly float P_DIVE_THRESHOLD = 12;
 	static readonly float P_DIVE_H_SPEED = 30;
+
+	static readonly float P_ROLL_V_SPEED = 12;
+	static readonly float P_ROLL_H_SPEED = 10;
 
 	static readonly float ACC_GRAV = 120;
 	static readonly float TERMINAL_VEL = -120;
@@ -32,6 +38,7 @@ public class MovementScript : MonoBehaviour {
 	private float hSpeed, vSpeed;
 	[SerializeField]
 	private float jumpPower;
+	private float groundedFrames; // Count the amount of time the player is on the ground
 
 	private void OnEnable() { controls.Gameplay.Enable(); }
 	private void OnDisable() { controls.Gameplay.Disable(); }
@@ -39,16 +46,24 @@ public class MovementScript : MonoBehaviour {
 	private void Awake() {
 
 		state = MovementState.IDLE;
+		groundedFrames = -1;
 
 		controls = new PlayerControls();
 		controller = GetComponent<CharacterController>();
 
 		// Jump pressed/released
 		controls.Gameplay.jump.performed += ctx => {
-			if(controller.isGrounded) {
+			// Normal jump
+			bool inJumpableState = state == MovementState.IDLE || state == MovementState.WALKING || state == MovementState.RUNNING;
+			if(controller.isGrounded && inJumpableState) {
 				vSpeed = P_JUMP_V_SPEED;
+				jumpPower = P_JUMP_POWER;
 			}
-			jumpPower = P_JUMP_POWER;
+			// Perform rollout
+			if(controller.isGrounded && state == MovementState.DIVING) { 
+				vSpeed = P_ROLL_V_SPEED;
+				hSpeed = P_ROLL_H_SPEED;
+			}
 		};
 		controls.Gameplay.jump.canceled += ctx => {
 			jumpPower = 0;
@@ -68,6 +83,18 @@ public class MovementScript : MonoBehaviour {
 	}
 
 	void Update() {
+
+		// Player just hit the ground
+		if(controller.isGrounded) {
+			if(groundedFrames == -1) {
+				groundedFrames = 0;
+				if(state == MovementState.ROLL) { 
+					state = MovementState.RUNNING;
+				}
+			} else { 
+				groundedFrames++;
+			}
+		}
 
 		leftStickAxes = controls.Gameplay.move.ReadValue<Vector2>();
 		bool isMoving = Mathf.Abs(leftStickAxes.x) >= 0.1 || Mathf.Abs(leftStickAxes.y) >= 0.1;
@@ -161,7 +188,7 @@ public class MovementScript : MonoBehaviour {
 		}
 	
 	}
-
+	
 	public void setMovementState(MovementState newState) { 
 		this.state = newState;
 	}
