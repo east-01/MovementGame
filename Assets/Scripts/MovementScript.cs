@@ -8,7 +8,7 @@ public class MovementScript : MonoBehaviour {
 	static readonly float P_H_ACC = 45;
 	static readonly float P_MAX_SPEED = 15;
 	static readonly float P_JUMP_V_SPEED = 30f;
-	static readonly float P_JUMP_POWER = 30; // The amount the player can hold the jump button until the jump stops ascending
+	static readonly float P_JUMP_POWER = 20; // The amount the player can hold the jump button until the jump stops ascending
 	static readonly float P_KICK_V_SPEED = 15;
 	static readonly float P_DIVE_THRESHOLD = 12;
 	static readonly float P_DIVE_H_SPEED = 30;
@@ -30,7 +30,6 @@ public class MovementScript : MonoBehaviour {
 	private MovementState state;
 	[SerializeField]
 	private float hSpeed, vSpeed;
-	private bool jumpPressed;
 	[SerializeField]
 	private float jumpPower;
 
@@ -50,11 +49,9 @@ public class MovementScript : MonoBehaviour {
 				vSpeed = P_JUMP_V_SPEED;
 			}
 			jumpPower = P_JUMP_POWER;
-			jumpPressed = true;
 		};
 		controls.Gameplay.jump.canceled += ctx => {
 			jumpPower = 0;
-			jumpPressed = false; 
 		};
 
 		// Attack pressed
@@ -73,8 +70,8 @@ public class MovementScript : MonoBehaviour {
 	void Update() {
 
 		leftStickAxes = controls.Gameplay.move.ReadValue<Vector2>();
-
-		if(Mathf.Abs(leftStickAxes.x) >= 0.1 || Mathf.Abs(leftStickAxes.y) >= 0.1) { 
+		bool isMoving = Mathf.Abs(leftStickAxes.x) >= 0.1 || Mathf.Abs(leftStickAxes.y) >= 0.1;
+		if(isMoving) { 
 			activeMovement();		
 		} else { 
 			passiveMovement();
@@ -99,9 +96,26 @@ public class MovementScript : MonoBehaviour {
 			}
 		}
 		
-		// Actually move the player		
+		bool isDrifting = isMoving && !controller.isGrounded;
+
+		float cam_yaw = cameraTransform.eulerAngles.y;
 		float player_yaw = transform.eulerAngles.y;
-		controller.Move(new Vector3(hSpeed * Mathf.Sin(player_yaw*Mathf.Deg2Rad), vSpeed, hSpeed * Mathf.Cos(player_yaw*Mathf.Deg2Rad)) * Time.deltaTime);
+		Vector2 hMovement = new Vector2(hSpeed * Mathf.Sin(player_yaw*Mathf.Deg2Rad), hSpeed * Mathf.Cos(player_yaw*Mathf.Deg2Rad));
+		Vector3 movement = new Vector3(hMovement.x, vSpeed, hMovement.y); 
+		if(!isDrifting) { 
+			controller.Move(movement * Time.deltaTime);	
+		} else { 
+
+			float targetAngle = cam_yaw + stickAngle;
+			Vector2 targetVector = new Vector2(leftStickAxes.magnitude*Mathf.Sin(targetAngle*Mathf.Deg2Rad), leftStickAxes.magnitude*Mathf.Cos(targetAngle*Mathf.Deg2Rad));
+			
+			float driftSpeed = Vector2.Dot(hMovement, targetVector);
+
+			controller.Move(new Vector3(hSpeed * Mathf.Sin(targetAngle*Mathf.Deg2Rad), vSpeed, hSpeed * Mathf.Cos(targetAngle*Mathf.Deg2Rad)) * Time.deltaTime);			
+		
+		}
+
+		// Actually move the player		
 
 	}
 
@@ -118,10 +132,10 @@ public class MovementScript : MonoBehaviour {
 			float targetAngle = cam_yaw + stickAngle;
 			float angleDifference = Mathf.Abs(player_yaw-targetAngle);
 
-			print("cam: " + cam_yaw + ", stick: " + stickAngle + ", target: " + targetAngle + ", player_yaw: " + player_yaw + ", diff: " + angleDifference);
-
-			//float new_player_yaw = player_yaw + Mathf.Sign(targetAngle-player_yaw) * 5 * Mathf.Clamp((angleDifference/90),0,1);
-			float new_player_yaw = Mathf.LerpAngle(player_yaw, targetAngle, 50 * Mathf.Clamp((angleDifference/90),0,1) * Time.deltaTime);
+			float new_player_yaw = targetAngle;
+			if(angleDifference > 1) { 
+				new_player_yaw = Mathf.LerpAngle(player_yaw, targetAngle, 50 * Mathf.Clamp((angleDifference/90),0,1) * Time.deltaTime);
+			}
 
 			transform.rotation = Quaternion.Euler(0, new_player_yaw, 0);
 
@@ -145,8 +159,12 @@ public class MovementScript : MonoBehaviour {
 		} else { 
 			hSpeed = 0;
 		}
+	
 	}
 
+	public void setMovementState(MovementState newState) { 
+		this.state = newState;
+	}
 	public MovementState getMovementState() { 
 		return state;
 	}
